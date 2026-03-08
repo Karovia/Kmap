@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+__pycache__/
+*.pyc
+.pytest_cache/
+*.pyo
+*.pyd
+.Python
+*.so
+.Python
+.claude/settings.local.json

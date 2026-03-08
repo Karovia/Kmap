@@ -1,0 +1,118 @@
+[tool.poetry]
+name = "kmap-backend"
+version = "0.1.0"
+description = "Kmap项目后端服务"
+authors = ["Kmap Team"]
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.109.2"
+uvicorn = {extras = ["standard"], version = "^0.27.1"}
+langchain = "^0.1.10"
+langchain-core = "^0.1.28"
+langchain-community = "^0.0.25"
+python-multipart = "^0.0.9"
+unstructured = "^0.12.5"
+unstructured-inference = "^0.7.23"
+qdrant-client = "^1.7.3"
+nebula3-python = "^3.6.0"
+sqlalchemy = "^2.0.27"
+pydantic = {extras = ["email"], version = "^2.6.1"}
+psycopg2-binary = "^2.9.9"
+asyncpg = "^0.29.0"
+redis = "^5.0.1"
+aio-pika = "^9.3.1"
+"python-jose[cryptography]" = "^3.3.0"
+"passlib[bcrypt]" = "^1.7.4"
+python-dotenv = "^1.0.1"
+pydantic-settings = "^2.1.0"
+requests = "^2.31.0"
+httpx = "^0.26.0"
+numpy = "^1.26.4"
+pandas = "^2.2.1"
+openai = "^1.12.0"
+anthropic = "^0.18.1"
+google-generativeai = "^0.3.2"
+tiktoken = "^0.6.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.1"
+pytest-asyncio = "^0.23.5"
+httpx = "^0.26.0"
+black = "^24.2.0"
+flake8 = "^7.0.0"
+isort = "^5.13.2"
+mypy = "^1.8.0"
+pre-commit = "^3.6.1"
+
+[build-system]
+requires = ["poetry-core==1.8.1"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"
+line_length = 120
+multi_line_output = 3
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.black]
+line-length = 120
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs/
+  | \.git/
+  | \.hg/
+  | \.mypy_cache/
+  | \.nox/
+  | \.venv/
+  | \.venv3/
+  | _build/
+  | buck-out/
+  | build/
+  | dist/
+)/
+'''
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203", "W503", "E501"]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+    ".eggs",
+    "*.egg-info",
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+ignore_missing_imports = true
+follow_imports = "silent"
+exclude = [
+    'tests/',
+    'venv/',
+    '\.venv/',
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --cov=app --cov-report=term --cov-report=html"
