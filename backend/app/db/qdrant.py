@@ -1,5 +1,6 @@
-from qdrant_client import QdrantClient
 from typing import Optional
+
+from qdrant_client import QdrantClient
 
 from app.core.config import settings
 
@@ -10,11 +11,7 @@ def get_qdrant_client() -> QdrantClient:
     """获取Qdrant客户端"""
     global qdrant_client
     if qdrant_client is None:
-        qdrant_client = QdrantClient(
-            url=settings.QDRANT_URL,
-            api_key=settings.QDRANT_API_KEY,
-            timeout=30
-        )
+        qdrant_client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY, timeout=30)
     return qdrant_client
 
 

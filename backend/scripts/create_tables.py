@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """创建数据库表脚本"""
 import asyncio
+
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import settings

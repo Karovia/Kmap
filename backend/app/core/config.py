@@ -1,4 +1,5 @@
 from typing import List, Union
+
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -10,6 +11,11 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SECRET_KEY: str = "your-secret-key-here-please-change-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # Server
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+    WORKERS: int = 1
 
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
@@ -67,10 +73,7 @@ class Settings(BaseSettings):
     PASSWORD_MIN_LENGTH: int = 8
     ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1", "0.0.0.0"]
 
-    model_config = SettingsConfigDict(
-        case_sensitive=True,
-        env_file=".env"
-    )
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", extra="ignore")
 
 
 settings = Settings()

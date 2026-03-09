@@ -7,13 +7,13 @@ services:
     container_name: kmap-backend
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - '8000:8000'
     volumes:
       - ./:/app
     environment:
       - ENVIRONMENT=development
       - DEBUG=true
-      - DATABASE_URL=postgresql://kmap:kmap123@postgres:5432/kmap
+      - DATABASE_URL=postgresql+asyncpg://kmap:kmap123@postgres:5432/kmap
       - REDIS_URL=redis://redis:6379/0
       - QDRANT_URL=http://qdrant:6333
       - NEBULA_GRAPH_HOST=nebula-graphd
@@ -34,7 +34,7 @@ services:
     container_name: kmap-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - '5432:5432'
     environment:
       - POSTGRES_DB=kmap
       - POSTGRES_USER=kmap
@@ -43,7 +43,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kmap -d kmap"]
+      test: ['CMD-SHELL', 'pg_isready -U kmap -d kmap']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,12 +56,12 @@ services:
     container_name: kmap-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -74,17 +74,18 @@ services:
     container_name: kmap-qdrant
     restart: unless-stopped
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - '6333:6333'
+      - '6334:6334'
     volumes:
       - qdrant_data:/qdrant/storage
     environment:
       - QDRANT__SERVICE__API_KEY=qdrant123
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:6333/health || exit 1"]
+      test: ['CMD-SHELL', 'curl -f "http://localhost:6333/health?api_key=qdrant123" || exit 1']
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - kmap-network
 
@@ -94,7 +95,7 @@ services:
     container_name: kmap-nebula-metad
     restart: unless-stopped
     ports:
-      - "9559:9559"
+      - '9559:9559'
     volumes:
       - nebula_meta_data:/data/meta
     command:
@@ -106,7 +107,7 @@ services:
       - --v=0
       - --minloglevel=0
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:19559/status || exit 1"]
+      test: ['CMD-SHELL', 'curl -f http://localhost:19559/status || exit 1']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -119,7 +120,7 @@ services:
     container_name: kmap-nebula-storaged
     restart: unless-stopped
     ports:
-      - "9779:9779"
+      - '9779:9779'
     volumes:
       - nebula_storage_data:/data/storage
     command:
@@ -130,13 +131,16 @@ services:
       - --data_path=/data/storage
       - --v=0
       - --minloglevel=0
+    privileged: true
+    user: root
     depends_on:
       - nebula-metad
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:19779/status || exit 1"]
+      test: ['CMD-SHELL', 'curl -f http://localhost:19779/status || exit 1']
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 120s
     networks:
       - kmap-network
 
@@ -146,7 +150,7 @@ services:
     container_name: kmap-nebula-graphd
     restart: unless-stopped
     ports:
-      - "9669:9669"
+      - '9669:9669'
     command:
       - --meta_server_addrs=nebula-metad:9559
       - --local_ip=nebula-graphd
@@ -159,7 +163,7 @@ services:
       - nebula-metad
       - nebula-storaged
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:19669/status || exit 1"]
+      test: ['CMD-SHELL', 'curl -f http://localhost:19669/status || exit 1']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -172,8 +176,8 @@ services:
     container_name: kmap-rabbitmq
     restart: unless-stopped
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - '5672:5672'
+      - '15672:15672'
     environment:
       - RABBITMQ_DEFAULT_USER=kmap
       - RABBITMQ_DEFAULT_PASS=kmap123
@@ -181,7 +185,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      test: ['CMD-SHELL', 'rabbitmq-diagnostics -q ping']
       interval: 10s
       timeout: 5s
       retries: 5

@@ -1,16 +1,12 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from contextlib import asynccontextmanager
 
-from app.core.config import settings
 from app.api import api_router
-from app.db import (
-    close_redis_connection,
-    close_qdrant_connection,
-    close_nebula_connection,
-    close_rabbitmq_connection
-)
+from app.core.config import settings
+# from app.db import close_nebula_connection, close_qdrant_connection, close_rabbitmq_connection, close_redis_connection
 
 
 @asynccontextmanager
@@ -19,10 +15,10 @@ async def lifespan(app: FastAPI):
     # 启动时初始化
     yield
     # 关闭时清理资源
-    await close_redis_connection()
-    close_qdrant_connection()
-    close_nebula_connection()
-    await close_rabbitmq_connection()
+    # await close_redis_connection()
+    # close_qdrant_connection()
+    # close_nebula_connection()
+    # await close_rabbitmq_connection()
 
 
 # 创建FastAPI应用实例
@@ -33,7 +29,7 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # 配置CORS
@@ -47,10 +43,7 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 # 配置受信任主机
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=settings.ALLOWED_HOSTS
-)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
 
 # 注册API路由
 app.include_router(api_router, prefix=settings.API_V1_STR)
@@ -59,19 +52,10 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.get("/")
 async def root():
     """根路径"""
-    return {
-        "message": "Welcome to Kmap Backend API",
-        "docs": "/docs",
-        "health": f"{settings.API_V1_STR}/health"
-    }
+    return {"message": "Welcome to Kmap Backend API", "docs": "/docs", "health": f"{settings.API_V1_STR}/health"}
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG,
-        workers=settings.WORKERS
-    )
+
+    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG, workers=settings.WORKERS)

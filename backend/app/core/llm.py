@@ -1,33 +1,19 @@
-from typing import Optional, Dict, Any
 import time
-from langchain.chat_models import (
-    ChatOpenAI,
-    ChatAnthropic,
-    ChatGoogleGenerativeAI
-)
-from langchain.schema import BaseChatModel, HumanMessage, SystemMessage
-from langchain.callbacks.manager import CallbackManager
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from typing import Any, Dict, List, Optional
 
-from app.models.llm_provider import LLMProvider
+import httpx
+from langchain.schema import HumanMessage, SystemMessage
+from langchain_openai import OpenAIEmbeddings
+
 from app.core.config import settings
+from app.models.llm_provider import LLMProvider
 
 
 class LLMFactory:
     """LLM工厂类，创建不同类型的LLM实例"""
 
     @staticmethod
-    def create_llm(provider: LLMProvider, **kwargs) -> BaseChatModel:
-        """
-        根据服务商类型创建对应的LLM实例
-
-        Args:
-            provider: LLM服务商配置
-            **kwargs: 额外参数，如temperature, max_tokens等
-
-        Returns:
-            BaseChatModel: LLM实例
-        """
+    def create_llm(provider: LLMProvider, **kwargs):
         common_params = {
             "temperature": kwargs.get("temperature", 0.7),
             "max_tokens": kwargs.get("max_tokens", 2000),
@@ -35,32 +21,63 @@ class LLMFactory:
         }
 
         if provider.type == "openai":
-            return ChatOpenAI(
-                api_key=provider.api_key,
-                base_url=provider.base_url,
-                **common_params
-            )
-        elif provider.type == "claude":
-            return ChatAnthropic(
-                anthropic_api_key=provider.api_key,
-                anthropic_api_url=provider.base_url,
-                **common_params
-            )
-        elif provider.type == "gemini":
-            return ChatGoogleGenerativeAI(
-                google_api_key=provider.api_key,
-                base_url=provider.base_url,
-                **common_params
-            )
-        elif provider.type == "custom":
-            # 自定义服务商默认使用OpenAI兼容接口
-            return ChatOpenAI(
-                api_key=provider.api_key,
-                base_url=provider.base_url,
-                **common_params
-            )
+            from langchain_community.chat_models import ChatOpenAI
+
+            return ChatOpenAI(api_key=provider.api_key, base_url=provider.base_url, **common_params)
+        if provider.type == "claude":
+            from langchain_community.chat_models import ChatAnthropic
+
+            return ChatAnthropic(anthropic_api_key=provider.api_key, anthropic_api_url=provider.base_url, **common_params)
+        if provider.type == "gemini":
+            raise ValueError("当前后端尚未接入 Gemini 对话模型，请先使用 OpenAI、Claude 或自定义 OpenAI 兼容服务")
+        if provider.type == "custom":
+            from langchain_community.chat_models import ChatOpenAI
+
+            return ChatOpenAI(api_key=provider.api_key, base_url=provider.base_url, **common_params)
+        raise ValueError(f"不支持的服务商类型: {provider.type}")
+
+
+class VolcengineEmbeddings:
+    """火山引擎多模态 Embedding"""
+
+    def __init__(self, api_key: str, base_url: str, model: str):
+        self.api_key = api_key
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+
+    def embed_query(self, text: str) -> List[float]:
+        """嵌入单个文本"""
+        # 如果 base_url 已经包含 /embeddings/multimodal，直接使用
+        if self.base_url.endswith("/embeddings/multimodal"):
+            url = self.base_url
         else:
-            raise ValueError(f"不支持的服务商类型: {provider.type}")
+            url = f"{self.base_url}/embeddings/multimodal"
+
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
+        data = {"model": self.model, "input": [{"type": "text", "text": text}]}
+
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(url, json=data, headers=headers)
+            response.raise_for_status()
+            result = response.json()
+            return result["data"]["embedding"]
+
+
+class EmbeddingFactory:
+    """Embedding工厂类，创建不同类型的向量模型实例"""
+
+    @staticmethod
+    def create_embeddings(provider: LLMProvider):
+        # 检查是否是火山引擎（通过 base_url 判断）
+        if provider.base_url and "volces.com" in provider.base_url:
+            return VolcengineEmbeddings(api_key=provider.api_key, base_url=provider.base_url, model=provider.model_name)
+        if provider.type == "openai":
+            return OpenAIEmbeddings(api_key=provider.api_key, base_url=provider.base_url, model=provider.model_name)
+        if provider.type == "custom":
+            return OpenAIEmbeddings(api_key=provider.api_key, base_url=provider.base_url, model=provider.model_name)
+        if provider.type == "gemini":
+            raise ValueError("当前后端尚未接入 Gemini Embedding，请先使用 OpenAI 或自定义 OpenAI 兼容向量服务")
+        raise ValueError(f"当前 Embedding 不支持服务商类型: {provider.type}")
 
 
 class LLMService:
@@ -71,17 +88,6 @@ class LLMService:
         self.llm = LLMFactory.create_llm(provider)
 
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> str:
-        """
-        异步生成文本
-
-        Args:
-            prompt: 用户提示词
-            system_prompt: 系统提示词
-            **kwargs: 额外参数
-
-        Returns:
-            str: 生成的文本
-        """
         messages = []
         if system_prompt:
             messages.append(SystemMessage(content=system_prompt))
@@ -91,17 +97,6 @@ class LLMService:
         return response.content
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> str:
-        """
-        同步生成文本
-
-        Args:
-            prompt: 用户提示词
-            system_prompt: 系统提示词
-            **kwargs: 额外参数
-
-        Returns:
-            str: 生成的文本
-        """
         messages = []
         if system_prompt:
             messages.append(SystemMessage(content=system_prompt))
@@ -111,25 +106,9 @@ class LLMService:
         return response.content
 
     async def test_connection(self, prompt: str = "Hello, this is a test message.", max_tokens: int = 100) -> Dict[str, Any]:
-        """
-        测试服务商连接
-
-        Args:
-            prompt: 测试提示词
-            max_tokens: 最大生成token数
-
-        Returns:
-            Dict: 测试结果，包含success, message, response, latency
-        """
         start_time = time.time()
         try:
-            # 创建临时LLM实例，使用测试参数
-            test_llm = LLMFactory.create_llm(
-                self.provider,
-                temperature=0.1,
-                max_tokens=max_tokens
-            )
-
+            test_llm = LLMFactory.create_llm(self.provider, temperature=0.1, max_tokens=max_tokens)
             messages = [HumanMessage(content=prompt)]
             response = await test_llm.ainvoke(messages)
             latency = time.time() - start_time
@@ -138,7 +117,7 @@ class LLMService:
                 "success": True,
                 "message": "连接测试成功",
                 "response": response.content,
-                "latency": round(latency, 3)
+                "latency": round(latency, 3),
             }
         except Exception as e:
             latency = time.time() - start_time
@@ -146,28 +125,75 @@ class LLMService:
                 "success": False,
                 "message": f"连接测试失败: {str(e)}",
                 "response": None,
-                "latency": round(latency, 3)
+                "latency": round(latency, 3),
+            }
+
+
+class EmbeddingService:
+    """Embedding 服务类"""
+
+    def __init__(self, provider: LLMProvider):
+        self.provider = provider
+        self.embeddings = EmbeddingFactory.create_embeddings(provider)
+
+    async def test_connection(self, text: str = "embedding test") -> Dict[str, Any]:
+        start_time = time.time()
+        try:
+            vector = self.embeddings.embed_query(text)
+            latency = time.time() - start_time
+            return {
+                "success": True,
+                "message": f"Embedding 连接测试成功，向量维度 {len(vector)}",
+                "response": f"vector_length={len(vector)}",
+                "latency": round(latency, 3),
+            }
+        except Exception as e:
+            latency = time.time() - start_time
+            return {
+                "success": False,
+                "message": f"Embedding 连接测试失败: {str(e)}",
+                "response": None,
+                "latency": round(latency, 3),
             }
 
 
 async def get_default_llm_service(db_session) -> Optional[LLMService]:
-    """获取默认LLM服务实例"""
     from app.crud import llm_provider
 
-    default_provider = await llm_provider.get_default(db_session)
+    default_provider = await llm_provider.get_default(db_session, provider_scope="chat")
     if not default_provider:
-        # 如果没有默认服务商，尝试使用配置文件中的OpenAI配置
         if settings.OPENAI_API_KEY:
-            from app.models.llm_provider import LLMProvider
             fallback_provider = LLMProvider(
-                name="Fallback OpenAI",
+                name="Fallback OpenAI Chat",
                 type="openai",
+                provider_scope="chat",
                 api_key=settings.OPENAI_API_KEY,
                 base_url=None,
                 model_name=settings.OPENAI_MODEL,
-                is_default=True
+                is_default=True,
             )
             return LLMService(fallback_provider)
         return None
 
     return LLMService(default_provider)
+
+
+async def get_default_embedding_service(db_session) -> Optional[EmbeddingService]:
+    from app.crud import llm_provider
+
+    default_provider = await llm_provider.get_default(db_session, provider_scope="embedding")
+    if not default_provider:
+        if settings.OPENAI_API_KEY:
+            fallback_provider = LLMProvider(
+                name="Fallback OpenAI Embedding",
+                type="openai",
+                provider_scope="embedding",
+                api_key=settings.OPENAI_API_KEY,
+                base_url=None,
+                model_name=settings.OPENAI_EMBEDDING_MODEL,
+                is_default=True,
+            )
+            return EmbeddingService(fallback_provider)
+        return None
+
+    return EmbeddingService(default_provider)

@@ -1,5 +1,6 @@
-import redis.asyncio as redis
 from typing import Optional
+
+import redis.asyncio as redis
 
 from app.core.config import settings
 
@@ -14,7 +15,7 @@ def get_redis_client() -> redis.Redis:
             settings.REDIS_URL,
             password=settings.REDIS_PASSWORD,
             max_connections=settings.REDIS_MAX_CONNECTIONS,
-            decode_responses=True
+            decode_responses=True,
         )
     return redis_client
 

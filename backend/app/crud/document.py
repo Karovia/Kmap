@@ -1,6 +1,7 @@
-from sqlalchemy import select, func
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional, Dict, Any
 
 from app.models.document import Document, DocumentChunk
 from app.schemas.document import DocumentCreate, DocumentUpdate
@@ -14,16 +15,9 @@ class CRUDDocument:
         result = await db.execute(select(Document).filter(Document.id == id))
         return result.scalar_one_or_none()
 
-    async def get_multi(
-        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
-    ) -> List[Document]:
+    async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> List[Document]:
         """获取文档列表"""
-        result = await db.execute(
-            select(Document)
-            .order_by(Document.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-        )
+        result = await db.execute(select(Document).order_by(Document.created_at.desc()).offset(skip).limit(limit))
         return result.scalars().all()
 
     async def count(self, db: AsyncSession) -> int:
@@ -37,17 +31,15 @@ class CRUDDocument:
             name=obj_in.name,
             file_type=obj_in.file_type,
             file_size=obj_in.file_size,
-            metadata=obj_in.metadata,
-            status="pending"
+            doc_metadata=obj_in.metadata,
+            status="pending",
         )
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
         return db_obj
 
-    async def update(
-        self, db: AsyncSession, *, db_obj: Document, obj_in: DocumentUpdate | Dict[str, Any]
-    ) -> Document:
+    async def update(self, db: AsyncSession, *, db_obj: Document, obj_in: DocumentUpdate | Dict[str, Any]) -> Document:
         """更新文档"""
         if isinstance(obj_in, dict):
             update_data = obj_in
@@ -107,16 +99,16 @@ class CRUDDocumentChunk:
         return result.scalars().all()
 
     async def create(
-        self, db: AsyncSession, *, document_id: int, content: str,
-        embedding: Optional[List[float]] = None, page_number: Optional[int] = None
+        self,
+        db: AsyncSession,
+        *,
+        document_id: int,
+        content: str,
+        embedding: Optional[List[float]] = None,
+        page_number: Optional[int] = None,
     ) -> DocumentChunk:
         """创建文档分片"""
-        db_obj = DocumentChunk(
-            document_id=document_id,
-            content=content,
-            embedding=embedding,
-            page_number=page_number
-        )
+        db_obj = DocumentChunk(document_id=document_id, content=content, embedding=embedding, page_number=page_number)
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
@@ -132,7 +124,7 @@ class CRUDDocumentChunk:
                 document_id=document_id,
                 content=chunk["content"],
                 embedding=chunk.get("embedding"),
-                page_number=chunk.get("page_number")
+                page_number=chunk.get("page_number"),
             )
             db.add(db_chunk)
             db_chunks.append(db_chunk)

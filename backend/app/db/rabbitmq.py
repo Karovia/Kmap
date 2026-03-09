@@ -1,5 +1,6 @@
-import aio_pika
 from typing import Optional
+
+import aio_pika
 
 from app.core.config import settings
 
@@ -18,11 +19,7 @@ async def get_rabbitmq_channel() -> aio_pika.Channel:
     """获取RabbitMQ通道"""
     connection = await get_rabbitmq_connection()
     channel = await connection.channel()
-    await channel.declare_exchange(
-        settings.RABBITMQ_EXCHANGE,
-        aio_pika.ExchangeType.DIRECT,
-        durable=True
-    )
+    await channel.declare_exchange(settings.RABBITMQ_EXCHANGE, aio_pika.ExchangeType.DIRECT, durable=True)
     return channel
 
 

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kmap</string>
+    <string name="title_activity_main">Kmap</string>
+    <string name="package_name">com.karovia.kmap</string>
+    <string name="custom_url_scheme">com.karovia.kmap</string>
+</resources>

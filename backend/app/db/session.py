@@ -13,9 +13,7 @@ engine = create_async_engine(
 )
 
 # 创建异步会话工厂
-AsyncSessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
-)
+AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
 
 
 async def get_db_session() -> AsyncSession:

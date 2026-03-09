@@ -1,6 +1,7 @@
-from nebula3.gclient.net import ConnectionPool
-from nebula3.Config import Config
 from typing import Optional
+
+from nebula3.Config import Config
+from nebula3.gclient.net import ConnectionPool
 
 from app.core.config import settings
 
@@ -16,15 +17,9 @@ def get_nebula_client():
         config.timeout = settings.NEBULA_GRAPH_TIMEOUT
 
         nebula_pool = ConnectionPool()
-        nebula_pool.init(
-            [(settings.NEBULA_GRAPH_HOST, settings.NEBULA_GRAPH_PORT)],
-            config
-        )
+        nebula_pool.init([(settings.NEBULA_GRAPH_HOST, settings.NEBULA_GRAPH_PORT)], config)
 
-    session = nebula_pool.get_session(
-        settings.NEBULA_GRAPH_USER,
-        settings.NEBULA_GRAPH_PASSWORD
-    )
+    session = nebula_pool.get_session(settings.NEBULA_GRAPH_USER, settings.NEBULA_GRAPH_PASSWORD)
 
     if session:
         session.execute(f"USE {settings.NEBULA_GRAPH_SPACE}")

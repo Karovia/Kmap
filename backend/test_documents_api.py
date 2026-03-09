@@ -3,15 +3,15 @@
 import asyncio
 import os
 import tempfile
-from httpx import AsyncClient, ASGITransport
+
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import app
 from app.core.config import settings
-from app.db.session import AsyncSessionLocal
-from app.models.document import Document, DocumentChunk
+from app.db.session import AsyncSessionLocal, engine
+from app.main import app
 from app.models import Base
-from app.db.session import engine
+from app.models.document import Document, DocumentChunk
 
 
 async def init_test_db():

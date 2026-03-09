@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """测试LLM服务商API接口"""
 import asyncio
+from typing import Any, Dict
+
 import httpx
-from typing import Dict, Any
 
 BASE_URL = "http://localhost:8000/api/v1"
 

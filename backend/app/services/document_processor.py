@@ -1,17 +1,17 @@
-import os
 import logging
-from typing import List, Dict, Any, Optional
 import uuid
-from unstructured.partition.auto import partition
+from typing import Any, Dict, List
+
+from langchain_openai import OpenAIEmbeddings
+from qdrant_client.models import Distance, PointStruct, VectorParams
 from unstructured.chunking.title import chunk_by_title
-from langchain.embeddings.openai import OpenAIEmbeddings
-from qdrant_client.models import PointStruct, VectorParams, Distance
+from unstructured.partition.auto import partition
 
 from app.core.config import settings
-from app.db.session import AsyncSessionLocal
-from app.db.qdrant import get_qdrant_client
+from app.core.llm import get_default_embedding_service
 from app.crud.document import crud_document, crud_document_chunk
-from app.core.llm import get_default_llm_service
+from app.db.qdrant import get_qdrant_client
+from app.db.session import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +32,7 @@ class DocumentProcessor:
             if not self.qdrant_client.collection_exists(DOCUMENTS_COLLECTION):
                 self.qdrant_client.create_collection(
                     collection_name=DOCUMENTS_COLLECTION,
-                    vectors_config=VectorParams(
-                        size=settings.QDRANT_VECTOR_SIZE,
-                        distance=Distance.COSINE
-                    )
+                    vectors_config=VectorParams(size=settings.QDRANT_VECTOR_SIZE, distance=Distance.COSINE),
                 )
                 logger.info(f"Qdrant集合 {DOCUMENTS_COLLECTION} 创建成功")
         except Exception as e:
@@ -50,21 +47,12 @@ class DocumentProcessor:
         """
         # 优先使用配置的LLM服务商的Embedding
         async with AsyncSessionLocal() as db:
-            llm_service = await get_default_llm_service(db)
-            if llm_service and llm_service.provider.type == "openai":
-                # 使用OpenAI Embedding
-                embeddings = OpenAIEmbeddings(
-                    api_key=llm_service.provider.api_key,
-                    base_url=llm_service.provider.base_url,
-                    model=settings.OPENAI_EMBEDDING_MODEL
-                )
-                return embeddings.embed_documents(texts)
+            embedding_service = await get_default_embedding_service(db)
+            if embedding_service:
+                return embedding_service.embeddings.embed_documents(texts)
             elif settings.OPENAI_API_KEY:
                 #  fallback到配置文件中的OpenAI
-                embeddings = OpenAIEmbeddings(
-                    api_key=settings.OPENAI_API_KEY,
-                    model=settings.OPENAI_EMBEDDING_MODEL
-                )
+                embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY, model=settings.OPENAI_EMBEDDING_MODEL)
                 return embeddings.embed_documents(texts)
             else:
                 raise ValueError("没有可用的Embedding模型，请配置LLM服务商或OpenAI API密钥")
@@ -76,11 +64,7 @@ class DocumentProcessor:
         :return: 解析后的元素列表
         """
         try:
-            elements = partition(
-                filename=file_path,
-                strategy="auto",
-                include_page_breaks=True
-            )
+            elements = partition(filename=file_path, strategy="auto", include_page_breaks=True)
             logger.info(f"文档解析完成，共 {len(elements)} 个元素")
             return elements
         except Exception as e:
@@ -99,17 +83,13 @@ class DocumentProcessor:
                 max_characters=1000,
                 new_after_n_chars=800,
                 combine_text_under_n_chars=200,
-                multipage_sections=True
+                multipage_sections=True,
             )
 
             processed_chunks = []
             for i, chunk in enumerate(chunks):
-                page_number = chunk.metadata.page_number if hasattr(chunk.metadata, 'page_number') else None
-                processed_chunks.append({
-                    "content": chunk.text,
-                    "page_number": page_number,
-                    "index": i
-                })
+                page_number = chunk.metadata.page_number if hasattr(chunk.metadata, "page_number") else None
+                processed_chunks.append({"content": chunk.text, "page_number": page_number, "index": i})
 
             logger.info(f"文档分片完成，共 {len(processed_chunks)} 个分片")
             return processed_chunks
@@ -117,11 +97,7 @@ class DocumentProcessor:
             logger.error(f"文档分片失败: {str(e)}")
             raise
 
-    async def _process_chunks(
-        self,
-        document_id: int,
-        chunks: List[Dict[str, Any]]
-    ) -> None:
+    async def _process_chunks(self, document_id: int, chunks: List[Dict[str, Any]]) -> None:
         """
         处理分片：生成向量并存储到PostgreSQL和Qdrant
         :param document_id: 文档ID
@@ -140,11 +116,9 @@ class DocumentProcessor:
 
             for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
                 # 数据库记录
-                db_chunks.append({
-                    "content": chunk["content"],
-                    "embedding": embedding,
-                    "page_number": chunk["page_number"]
-                })
+                db_chunks.append(
+                    {"content": chunk["content"], "embedding": embedding, "page_number": chunk["page_number"]}
+                )
 
                 # Qdrant点
                 point_id = str(uuid.uuid4())
@@ -156,24 +130,17 @@ class DocumentProcessor:
                             "document_id": document_id,
                             "content": chunk["content"],
                             "page_number": chunk["page_number"],
-                            "chunk_index": i
-                        }
+                            "chunk_index": i,
+                        },
                     )
                 )
 
             # 批量存储到PostgreSQL
             async with AsyncSessionLocal() as db:
-                await crud_document_chunk.create_multi(
-                    db,
-                    document_id=document_id,
-                    chunks=db_chunks
-                )
+                await crud_document_chunk.create_multi(db, document_id=document_id, chunks=db_chunks)
 
             # 批量存储到Qdrant
-            self.qdrant_client.upsert(
-                collection_name=DOCUMENTS_COLLECTION,
-                points=qdrant_points
-            )
+            self.qdrant_client.upsert(collection_name=DOCUMENTS_COLLECTION, points=qdrant_points)
 
             logger.info(f"分片处理完成，共 {len(chunks)} 个分片已存储")
 
@@ -194,11 +161,7 @@ class DocumentProcessor:
 
             # 2. 更新状态为分片中
             async with AsyncSessionLocal() as db:
-                await crud_document.update_status(
-                    db,
-                    document_id=document_id,
-                    status="splitting"
-                )
+                await crud_document.update_status(db, document_id=document_id, status="splitting")
 
             # 3. 语义分片
             logger.info(f"开始分片文档 {document_id}")
@@ -206,11 +169,7 @@ class DocumentProcessor:
 
             # 4. 更新状态为向量化中
             async with AsyncSessionLocal() as db:
-                await crud_document.update_status(
-                    db,
-                    document_id=document_id,
-                    status="embedding"
-                )
+                await crud_document.update_status(db, document_id=document_id, status="embedding")
 
             # 5. 处理分片（生成向量并存储）
             logger.info(f"开始向量化文档 {document_id}")
@@ -218,11 +177,7 @@ class DocumentProcessor:
 
             # 6. 更新状态为已完成
             async with AsyncSessionLocal() as db:
-                await crud_document.update_status(
-                    db,
-                    document_id=document_id,
-                    status="indexed"
-                )
+                await crud_document.update_status(db, document_id=document_id, status="indexed")
 
             # 7. 可选：删除源文件
             # if os.path.exists(file_path):
@@ -236,9 +191,6 @@ class DocumentProcessor:
             # 更新状态为错误
             async with AsyncSessionLocal() as db:
                 await crud_document.update_status(
-                    db,
-                    document_id=document_id,
-                    status="error",
-                    error_message=f"处理失败: {str(e)}"
+                    db, document_id=document_id, status="error", error_message=f"处理失败: {str(e)}"
                 )
             raise
