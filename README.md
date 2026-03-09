@@ -1,7 +1,3 @@
-<div align="center">
-<img width="1200" height="475" alt="Kmap Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
 # Kmap - 智能知识图谱应用
 
 Kmap 是一款基于 AI 的知识图谱管理与应用平台，支持文档上传、知识自动抽取、图谱可视化、智能问答等功能，帮助用户高效管理和利用知识资产。
