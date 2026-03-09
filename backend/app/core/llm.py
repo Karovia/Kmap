@@ -1,12 +1,99 @@
 import time
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import httpx
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
 
 from app.core.config import settings
 from app.models.llm_provider import LLMProvider
+
+
+@dataclass
+class ChatResponse:
+    content: str
+
+
+class ArkAnthropicCompatibleChat:
+    """火山方舟 Anthropic 兼容对话接口。"""
+
+    def __init__(self, api_key: str, base_url: str, model: str, max_tokens: int = 2000, temperature: float = 0.7):
+        self.api_key = api_key
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+
+    def _build_messages_url(self) -> str:
+        if self.base_url.endswith("/messages"):
+            return self.base_url
+        if self.base_url.endswith("/v1"):
+            return f"{self.base_url}/messages"
+        return f"{self.base_url}/v1/messages"
+
+    @staticmethod
+    def _convert_messages(messages: List[Any]) -> List[Dict[str, str]]:
+        converted: List[Dict[str, str]] = []
+        for message in messages:
+            role = "assistant"
+            if isinstance(message, SystemMessage):
+                role = "system"
+            elif isinstance(message, HumanMessage):
+                role = "user"
+
+            converted.append({"role": role, "content": str(message.content)})
+        return converted
+
+    async def ainvoke(self, messages: List[Any], **kwargs) -> ChatResponse:
+        payload = {
+            "model": kwargs.get("model", self.model),
+            "max_tokens": kwargs.get("max_tokens", self.max_tokens),
+            "temperature": kwargs.get("temperature", self.temperature),
+            "messages": self._convert_messages(messages),
+        }
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+            "anthropic-version": "2023-06-01",
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(self._build_messages_url(), json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        text_parts = []
+        for item in data.get("content", []):
+            if item.get("type") == "text":
+                text_parts.append(item.get("text", ""))
+
+        return ChatResponse(content="\n".join(part for part in text_parts if part))
+
+    def invoke(self, messages: List[Any], **kwargs) -> ChatResponse:
+        payload = {
+            "model": kwargs.get("model", self.model),
+            "max_tokens": kwargs.get("max_tokens", self.max_tokens),
+            "temperature": kwargs.get("temperature", self.temperature),
+            "messages": self._convert_messages(messages),
+        }
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+            "anthropic-version": "2023-06-01",
+        }
+
+        with httpx.Client(timeout=60.0) as client:
+            response = client.post(self._build_messages_url(), json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        text_parts = []
+        for item in data.get("content", []):
+            if item.get("type") == "text":
+                text_parts.append(item.get("text", ""))
+
+        return ChatResponse(content="\n".join(part for part in text_parts if part))
 
 
 class LLMFactory:
@@ -25,6 +112,15 @@ class LLMFactory:
 
             return ChatOpenAI(api_key=provider.api_key, base_url=provider.base_url, **common_params)
         if provider.type == "claude":
+            if provider.base_url and "volces.com" in provider.base_url:
+                return ArkAnthropicCompatibleChat(
+                    api_key=provider.api_key,
+                    base_url=provider.base_url,
+                    model=provider.model_name,
+                    max_tokens=common_params["max_tokens"],
+                    temperature=common_params["temperature"],
+                )
+
             from langchain_community.chat_models import ChatAnthropic
 
             return ChatAnthropic(anthropic_api_key=provider.api_key, anthropic_api_url=provider.base_url, **common_params)
@@ -87,11 +183,30 @@ class LLMService:
         self.provider = provider
         self.llm = LLMFactory.create_llm(provider)
 
+    def _is_ark_claude_compatible(self) -> bool:
+        return bool(self.provider.type == "claude" and self.provider.base_url and "volces.com" in self.provider.base_url)
+
+    def _create_ark_chat(self, max_tokens: int = 2000, temperature: float = 0.7) -> ArkAnthropicCompatibleChat:
+        return ArkAnthropicCompatibleChat(
+            api_key=self.provider.api_key,
+            base_url=self.provider.base_url,
+            model=self.provider.model_name,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> str:
         messages = []
         if system_prompt:
             messages.append(SystemMessage(content=system_prompt))
         messages.append(HumanMessage(content=prompt))
+
+        if self._is_ark_claude_compatible():
+            response = await self._create_ark_chat(
+                max_tokens=kwargs.get("max_tokens", 2000),
+                temperature=kwargs.get("temperature", 0.7),
+            ).ainvoke(messages, **kwargs)
+            return response.content
 
         response = await self.llm.ainvoke(messages, **kwargs)
         return response.content
@@ -102,15 +217,25 @@ class LLMService:
             messages.append(SystemMessage(content=system_prompt))
         messages.append(HumanMessage(content=prompt))
 
+        if self._is_ark_claude_compatible():
+            response = self._create_ark_chat(
+                max_tokens=kwargs.get("max_tokens", 2000),
+                temperature=kwargs.get("temperature", 0.7),
+            ).invoke(messages, **kwargs)
+            return response.content
+
         response = self.llm.invoke(messages, **kwargs)
         return response.content
 
     async def test_connection(self, prompt: str = "Hello, this is a test message.", max_tokens: int = 100) -> Dict[str, Any]:
         start_time = time.time()
         try:
-            test_llm = LLMFactory.create_llm(self.provider, temperature=0.1, max_tokens=max_tokens)
             messages = [HumanMessage(content=prompt)]
-            response = await test_llm.ainvoke(messages)
+            if self._is_ark_claude_compatible():
+                response = await self._create_ark_chat(max_tokens=max_tokens, temperature=0.1).ainvoke(messages)
+            else:
+                test_llm = LLMFactory.create_llm(self.provider, temperature=0.1, max_tokens=max_tokens)
+                response = await test_llm.ainvoke(messages)
             latency = time.time() - start_time
 
             return {

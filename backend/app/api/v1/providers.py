@@ -124,10 +124,34 @@ async def test_provider(
             embedding_service = EmbeddingService(provider)
             result = await embedding_service.test_connection(text=test_request.prompt)
         else:
-            from app.core.llm import LLMService
+            if provider.type == "claude" and provider.base_url and "volces.com" in provider.base_url:
+                import time
 
-            llm_service = LLMService(provider)
-            result = await llm_service.test_connection(prompt=test_request.prompt, max_tokens=test_request.max_tokens)
+                from langchain_core.messages import HumanMessage
+
+                from app.core.llm import ArkAnthropicCompatibleChat
+
+                start_time = time.time()
+                chat = ArkAnthropicCompatibleChat(
+                    api_key=provider.api_key,
+                    base_url=provider.base_url,
+                    model=provider.model_name,
+                    max_tokens=test_request.max_tokens,
+                    temperature=0.1,
+                )
+                response = await chat.ainvoke([HumanMessage(content=test_request.prompt)])
+                latency = time.time() - start_time
+                result = {
+                    "success": True,
+                    "message": "连接测试成功",
+                    "response": response.content,
+                    "latency": round(latency, 3),
+                }
+            else:
+                from app.core.llm import LLMService
+
+                llm_service = LLMService(provider)
+                result = await llm_service.test_connection(prompt=test_request.prompt, max_tokens=test_request.max_tokens)
         return result
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"测试过程中发生错误: {str(e)}")

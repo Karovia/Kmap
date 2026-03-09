@@ -17,11 +17,13 @@ import {
   XCircle,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import type { LLMProvider, ProviderScope, ProviderType } from '../types/domain';
 import { cn } from '../utils/cn';
 
 export function SettingsPage() {
+  const navigate = useNavigate();
   const [providers, setProviders] = useState<LLMProvider[]>([]);
   const [activeScope, setActiveScope] = useState<ProviderScope>('chat');
   const [loading, setLoading] = useState(true);
@@ -192,7 +194,12 @@ export function SettingsPage() {
     <div className="bg-[#fcfaf8] min-h-screen pb-24">
       <header className="sticky top-0 z-10 bg-[#fcfaf8]/80 backdrop-blur-md border-b border-slate-200 px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <ArrowLeft className="size-6 text-slate-600 cursor-pointer" />
+          <button
+            onClick={() => navigate(-1)}
+            className="rounded-full p-1 transition-colors hover:bg-slate-100"
+          >
+            <ArrowLeft className="size-6 text-slate-600" />
+          </button>
           <h1 className="text-lg font-semibold font-serif">设置</h1>
         </div>
       </header>
@@ -265,6 +272,21 @@ export function SettingsPage() {
               Embedding 模型
             </button>
           </div>
+
+          <button
+            onClick={() => navigate('/settings/guide')}
+            className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left transition hover:border-primary/30 hover:bg-primary/5"
+          >
+            <div>
+              <p className="text-sm font-semibold text-slate-900">查看详细配置指南</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                包含火山方舟对话模型与 Embedding 模型的 Base URL、模型名和常见错误说明。
+              </p>
+            </div>
+            <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700">
+              打开教程
+            </div>
+          </button>
 
           {loading ? (
             <div className="flex justify-center items-center py-12">
