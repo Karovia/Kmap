@@ -35,7 +35,17 @@ export function useDocuments() {
     statusPollingRef.current[documentId] = setInterval(async () => {
       try {
         const updatedDoc = await api.getDocumentStatus(documentId);
-        setDocuments(prev => prev.map(doc => (doc.id === documentId ? updatedDoc : doc)));
+        setDocuments(prev =>
+          prev.map(doc =>
+            doc.id === documentId
+              ? {
+                  ...doc,
+                  status: updatedDoc.status,
+                  error_message: updatedDoc.error_message,
+                }
+              : doc
+          )
+        );
 
         if (updatedDoc.status === 'indexed' || updatedDoc.status === 'error') {
           clearInterval(statusPollingRef.current[documentId]);

@@ -36,6 +36,13 @@ interface BackendDocumentUploadResponse {
   document: BackendDocument;
 }
 
+interface BackendDocumentStatusResponse {
+  id: number;
+  status: Document['status'];
+  error_message?: string | null;
+  updated_at?: string;
+}
+
 function inferDocumentType(fileType: string): Document['type'] {
   if (fileType === 'doc') return 'docx';
   if (fileType === 'txt') return 'txt';
@@ -183,7 +190,15 @@ export const api = {
 
   async getDocumentStatus(id: string): Promise<Document> {
     const res = await fetch(`/api/v1/documents/${id}/status`);
-    const data = await parseJsonResponse<BackendDocument>(res, '获取文档状态失败');
-    return normalizeDocument(data);
+    const data = await parseJsonResponse<BackendDocumentStatusResponse>(res, '获取文档状态失败');
+    return {
+      id: String(data.id),
+      name: '',
+      size: 0,
+      uploaded_at: data.updated_at ?? '',
+      status: data.status,
+      type: 'txt',
+      error_message: data.error_message ?? undefined,
+    };
   },
 };
