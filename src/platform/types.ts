@@ -39,4 +39,5 @@ export interface PlatformBridge {
   shareContent: (payload: SharePayload) => Promise<PlatformResult<boolean>>;
   saveFile: (payload: SaveFilePayload) => Promise<PlatformResult<string>>;
   getDeviceInfo: () => Promise<PlatformResult<PlatformDeviceInfo>>;
+  registerBackButtonHandler: (handler: () => void) => Promise<PlatformResult<boolean>>;
 }
