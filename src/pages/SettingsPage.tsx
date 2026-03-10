@@ -7,13 +7,16 @@ import { ProviderScopeTabs } from '../components/settings/ProviderScopeTabs';
 import { SettingsHintCard } from '../components/settings/SettingsHintCard';
 import { StatusAlerts } from '../components/settings/StatusAlerts';
 import { api } from '../services/api';
+import { useProviderStore } from '../stores/providerStore';
 import type { LLMProvider, ProviderScope } from '../types/domain';
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const [providers, setProviders] = useState<LLMProvider[]>([]);
+  const providers = useProviderStore(state => state.providers);
+  const loading = useProviderStore(state => state.loading);
+  const setProviders = useProviderStore(state => state.setProviders);
+  const setLoading = useProviderStore(state => state.setLoading);
   const [activeScope, setActiveScope] = useState<ProviderScope>('chat');
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
