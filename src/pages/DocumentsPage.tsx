@@ -3,8 +3,10 @@ import { DocumentsEmptyState } from '../components/documents/DocumentsEmptyState
 import { DocumentsFeedback } from '../components/documents/DocumentsFeedback';
 import { DocumentsToolbar } from '../components/documents/DocumentsToolbar';
 import { useDocuments } from '../hooks/useDocuments';
+import { usePlatformStore } from '../stores/platformStore';
 
 export function DocumentsPage() {
+  const isNativeApp = usePlatformStore(state => state.isNativeApp);
   const {
     loading,
     uploading,
@@ -20,6 +22,7 @@ export function DocumentsPage() {
     setSearchQuery,
     setActiveFilter,
     handleFileUpload,
+    handleNativeFilePick,
     handleDelete,
   } = useDocuments();
 
@@ -35,6 +38,8 @@ export function DocumentsPage() {
         onSearchChange={setSearchQuery}
         onFilterChange={setActiveFilter}
         onFileUpload={handleFileUpload}
+        onNativeFilePick={handleNativeFilePick}
+        isNativeApp={isNativeApp}
       />
 
       <main className="px-4 py-6 space-y-1">

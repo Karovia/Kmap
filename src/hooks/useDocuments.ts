@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { platformBridge } from '../platform';
 import { api } from '../services/api';
 import type { Document, DocumentStatus } from '../types/domain';
 
@@ -130,6 +131,44 @@ export function useDocuments() {
     }
   };
 
+  const handleNativeFilePick = async () => {
+    try {
+      setError(null);
+      const result = await platformBridge.pickDocument();
+
+      if (!result.success) {
+        setError(result.error || '文件选择失败');
+        return;
+      }
+
+      const picked = result.data;
+      if (!picked) return;
+
+      if (picked.size && picked.size > 50 * 1024 * 1024) {
+        setError('文件大小不能超过50MB');
+        return;
+      }
+
+      setUploading(true);
+      setUploadProgress(0);
+      setSuccess(null);
+
+      const file = new File([], picked.name, { type: picked.mimeType });
+      const newDoc = await api.uploadDocument(file, progress => {
+        setUploadProgress(progress);
+      });
+
+      setSuccess(`文件 "${picked.name}" 上传成功`);
+      setDocuments(prev => [newDoc, ...prev]);
+      startStatusPolling(newDoc.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '上传失败');
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`确定要删除文档 "${name}" 吗？此操作不可撤销。`)) {
       return;
@@ -184,6 +223,7 @@ export function useDocuments() {
     setSearchQuery,
     setActiveFilter,
     handleFileUpload,
+    handleNativeFilePick,
     handleDelete,
   };
 }

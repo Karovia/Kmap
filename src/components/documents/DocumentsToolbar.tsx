@@ -13,6 +13,8 @@ interface DocumentsToolbarProps {
   onSearchChange: (value: string) => void;
   onFilterChange: (value: DocumentStatus | 'all') => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onNativeFilePick?: () => void;
+  isNativeApp?: boolean;
 }
 
 export function DocumentsToolbar(props: DocumentsToolbarProps) {
@@ -26,7 +28,17 @@ export function DocumentsToolbar(props: DocumentsToolbarProps) {
     onSearchChange,
     onFilterChange,
     onFileUpload,
+    onNativeFilePick,
+    isNativeApp,
   } = props;
+
+  const handleUploadClick = () => {
+    if (isNativeApp && onNativeFilePick) {
+      onNativeFilePick();
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
 
   return (
     <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-4">
@@ -36,7 +48,7 @@ export function DocumentsToolbar(props: DocumentsToolbarProps) {
         </button>
         <h1 className="font-serif text-xl font-bold text-slate-900">文档管理</h1>
         <button
-          onClick={() => fileInputRef.current?.click()}
+          onClick={handleUploadClick}
           disabled={uploading}
           className="p-2 -mr-2 hover:bg-primary/10 rounded-full transition-colors text-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
