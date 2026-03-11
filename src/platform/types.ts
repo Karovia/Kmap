@@ -9,7 +9,6 @@ export interface PickedDocument {
   size: number;
   mimeType?: string;
   uri?: string;
-  data?: string; // base64 编码的文件内容
 }
 
 export interface SharePayload {
@@ -35,6 +34,7 @@ export interface PlatformDeviceInfo {
 export interface PlatformBridge {
   isNativeApp: boolean;
   pickDocument: () => Promise<PlatformResult<PickedDocument>>;
+  readFileContent: (uri: string) => Promise<PlatformResult<string>>;
   requestStoragePermission: () => Promise<PlatformResult<PermissionState>>;
   checkStoragePermission: () => Promise<PlatformResult<PermissionState>>;
   shareContent: (payload: SharePayload) => Promise<PlatformResult<boolean>>;

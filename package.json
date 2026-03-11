@@ -1,11 +1,12 @@
 {
-  "name": "react-example",
+  "name": "kmap",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
+    "build:fallback": "node scripts/build-fallback.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "eslint src --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
@@ -41,6 +42,10 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.2",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-replace": "^6.0.3",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@typescript-eslint/eslint-plugin": "^8.56.1",

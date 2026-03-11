@@ -2,188 +2,119 @@
 
 Kmap 是一个面向知识管理场景的 Android 本地知识图谱应用仓库。
 
-当前仓库包含三部分：
+当前仓库采用三层结构：
 
-- `src/`：基于 `React 19 + TypeScript + Vite 6 + Tailwind CSS 4` 的前端界面层
-- `android/`：基于 `Capacitor Android` 的原生宿主工程
-- `backend/`：基于 `FastAPI` 的后端服务与文档处理能力
+- `src/`：`React 19 + TypeScript + Vite 6 + Tailwind CSS 4` 前端界面层
+- `android/`：`Capacitor Android` 原生宿主工程
+- `backend/`：`FastAPI` 后端服务、LLM 服务商配置与文档处理链路
 
-项目的最终交付形态是 Android App。浏览器运行形态仅用于开发调试，不作为独立 Web 产品交付。
+项目的最终交付形态是 Android App；浏览器运行形态仅用于开发调试，不作为独立 Web 产品交付。
 
 ## 项目状态快照（2026-03-11）
 
 | 模块 | 状态 | 当前情况 |
 | --- | --- | --- |
-| 应用壳层与导航 | ✅ 已落地 | `React Router + HashRouter` 已接入，底部导航与一级页面切换可用 |
-| 文档管理 | 🟡 部分完成 | 前后端已打通文档上传、列表、删除、状态轮询；浏览器上传可用，Android 原生选中文件后的真实内容上传仍未闭环 |
-| 服务商配置 | ✅ 已落地 | 前端设置页与后端 `/api/v1/providers` 已支持列表、创建、编辑、删除、测试连接 |
-| Android 宿主 | ✅ 已初始化 | `Capacitor` 工程已生成，应用 ID 为 `com.karovia.kmap`，仓库内已有 APK 构建产物 |
-| 平台桥接 | 🟡 部分完成 | `pickDocument`、权限、分享、保存文件、设备信息、返回键监听接口已封装，但仍需继续补齐真实业务链路 |
-| 首页 / 图谱 / 聊天 | 🟡 原型阶段 | 页面骨架与视觉稿已在 `src/pages/` 中落地，但图谱与聊天尚未接入真实数据与业务接口 |
-| 后端能力 | 🟡 基础完成 | 已提供健康检查、文档管理、LLM 服务商配置接口；聊天、图谱、认证授权等能力尚未实现 |
-| 工程校验 | 🟡 部分完成 | 本次检查中 `npm run type-check` 通过；`npm run lint` 当前因 ESLint 9 配置模式不匹配失败；`vite build` 未在当前受限环境中复验成功 |
+| 应用壳层与导航 | ✅ 已落地 | `React Router + HashRouter` 已接入，底部导航与页面切换动画可用 |
+| 文档管理 | 🟡 部分完成 | 前后端已打通上传、列表、详情、删除、状态轮询；浏览器上传可用，Android 代码链路已支持原生选文件后读取内容再上传，但仍需真机验证 |
+| 服务商配置 | ✅ 已落地 | 设置页与 `/api/v1/providers` 已支持 `chat` / `embedding` 两类服务商的列表、创建、编辑、删除、测试连接 |
+| 聊天 | 🟡 基础可用 | `ChatPage` 已接入 `/api/v1/chat`，支持非流式多轮消息提交，但没有历史记录、流式响应、RAG 与引用来源 |
+| 图谱 | 🟡 概览版 | `GraphPage` 已接入 `/api/v1/graph/overview`，当前展示的是文档状态、服务商与文档节点的概览图，不是真实实体关系图谱 |
+| 首页仪表盘 | 🟡 原型阶段 | `DashboardPage` 仍以静态展示和 mock 数据为主 |
+| 平台桥接 | 🟡 部分完成 | 已统一封装文件选择、原生文件读取、权限、分享、保存文件、设备信息、返回键监听；真实设备体验仍待验证 |
+| 后端能力 | 🟡 基础完成 | 已提供健康检查、文档管理、服务商配置、聊天、图谱概览接口；认证、完整会话能力、真实图数据库查询尚未完成 |
+| Android 宿主 | ✅ 已初始化 | `Capacitor` 工程已生成，应用 ID 为 `com.karovia.kmap`，已有 Android 工程与相关构建脚本 |
 
 ## 当前已落地能力
 
-- 前端已完成页面级拆分，`src/App.tsx` 只负责应用壳层、路由装配与页面切换动画
-- 入口已使用 `HashRouter`，更适合 `Capacitor` 容器场景
-- 文档页已拆为页面、Hook 和多个文档组件，支持搜索、状态筛选、删除与轮询反馈
-- 设置页已拆为页面、服务商列表、表单弹窗、状态提示和配置指南页面
-- `src/services/`、`src/platform/`、`src/stores/`、`src/hooks/`、`src/types/` 等基础层已建立
-- 后端已提供 `/api/v1/documents`、`/api/v1/providers`、`/health` 等基础接口
-- Android 宿主工程已生成，当前构建产物可见于：
-  - `android/app/build/outputs/apk/debug/app-debug.apk`
-  - `android/app/build/outputs/apk/release/app-release.apk`
+- 文档页已支持搜索、状态筛选、上传进度、删除和状态轮询
+- 设置页已支持区分 `chat` / `embedding` 服务商，并提供配置指南页
+- 聊天页已能调用默认 `chat` 服务商返回回复
+- 图谱页已能基于后端聚合数据渲染概览节点和节点详情
+- 平台层已收敛到 `src/platform/`，避免页面直接耦合 Capacitor API
+- 后端文档处理链路已具备上传落盘、RabbitMQ 投递、Unstructured 分片、Embedding、PostgreSQL / Qdrant 写入能力
 
 ## 当前缺口与已知问题
 
-- `DashboardPage`、`GraphPage`、`ChatPage` 目前主要还是静态展示或交互原型，不应视为完整业务能力
-- Android 原生文件选择虽然已经通过 `src/platform/index.ts` 封装，但 `useDocuments` 中当前仍使用空 `File` 对象上传，原生选中文件后并未把真实字节流送到后端
-- 后端尚未提供聊天接口、图谱查询接口、认证授权与完整文档处理联调闭环
-- 根目录 `package.json` 的包名仍是 `react-example`，尚未完全完成工程品牌化整理
-- `npm run lint` 目前不可用，原因是仓库仍使用 `.eslintrc.json`，但依赖版本已是 ESLint 9，需迁移到 `eslint.config.js` 或回退 ESLint 版本
+- 首页仍是静态仪表盘，不是实时业务数据
+- 当前图谱只是概览视图，还没有 Nebula Graph 实体关系查询与高级交互
+- 聊天仍是基础问答，没有流式返回、历史会话、检索增强和引用来源
+- `Gemini` 虽然在服务商类型中可选，但当前后端实际未接通 Gemini 对话 / Embedding
+- 文档删除时仍有 `Qdrant` 清理 TODO
+- Android 原生文件上传、权限、分享、返回键等能力仍需真机联调验证
 
 ## 仓库结构
 
 ```text
-Kmap/
-├── src/
-│   ├── components/
-│   ├── data/
-│   ├── hooks/
-│   ├── pages/
-│   ├── platform/
-│   ├── services/
-│   ├── stores/
-│   ├── types/
-│   └── utils/
-├── android/
-├── backend/
-├── docs/
-├── capacitor.config.ts
-├── .claude.md
-└── README.md
+.
+├── src/        # 前端页面、组件、平台桥接、服务层、状态管理
+├── android/    # Capacitor Android 宿主工程
+├── backend/    # FastAPI 后端与文档处理链路
+├── docs/       # PRD、方案、进度、评审文档
+├── scripts/    # 构建与辅助脚本
+├── .claude.md  # 仓库级上下文缓存 / 协作记忆
+└── README.md   # 对外项目说明
 ```
-
-## 环境要求
-
-### 前端
-
-- Node.js `20+`
-- npm `10+`
-
-### Android
-
-- Android Studio
-- Android SDK
-- JDK `17+`
-- 正确配置 `JAVA_HOME`
-
-### 后端
-
-- Python `3.11`
-- Poetry（推荐）
-- Docker Desktop（需要完整依赖栈时）
 
 ## 本地开发
 
-### 1. 前端
-
-安装依赖：
+### 前端
 
 ```bash
 npm install
-```
-
-启动开发服务器：
-
-```bash
 npm run dev
 ```
 
-类型检查：
+常用命令：
 
 ```bash
 npm run type-check
-```
-
-注意：
-
-- `npm run lint` 当前会失败，需先修复 ESLint 配置
-- `npm run build` 请在本机完整环境中执行并复验
-
-### 2. 后端
-
-进入后端目录：
-
-```bash
-cd backend
-```
-
-复制环境变量示例：
-
-```bash
-cp .env.example .env
-```
-
-安装依赖并启动：
-
-```bash
-poetry install
-poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-默认接口地址：
-
-- API 根路径：`http://localhost:8000/api/v1`
-- Swagger 文档：`http://localhost:8000/docs`
-
-### 3. Android
-
-先构建前端资源：
-
-```bash
+npm run lint
 npm run build
 ```
 
-同步到 Android 工程：
+### 后端
 
 ```bash
+cd backend
+poetry install
+cp .env.example .env
+docker-compose up -d
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+补充说明：
+
+- LLM 服务商快速启动见 `backend/QUICKSTART_LLM.md`
+- 文档处理模块说明见 `backend/docs/document_module.md`
+- 服务商配置说明见 `backend/docs/LLM_PROVIDER.md`
+
+### Android
+
+```bash
+npm run build
 npx cap sync android
-```
-
-用 Android Studio 打开：
-
-```bash
-npx cap open android
-```
-
-如果需要命令行构建 APK：
-
-```bash
 cd android
 ./gradlew assembleDebug
-./gradlew assembleRelease
 ```
 
-## 本次检查记录（2026-03-11）
+## 重要文档
 
-- `npm run type-check`：✅ 通过
-- `npm run lint`：❌ 失败，当前配置与 ESLint 9 不兼容
-- `vite build`：⚠️ 在当前 CLI 受限环境中触发 `spawn EPERM`，本次未复验成功
-- 后端测试：⚠️ 当前环境没有可直接使用的 Python 运行时，本次未复验
+- `docs/产品需求文档.md`：产品目标、功能范围与需求边界
+- `docs/项目开发进度与计划.md`：早期推进计划，部分状态描述已过时
+- `docs/前端代码分析报告.md`：前端拆分与结构分析
+- `docs/Capacitor Android 接入方案.md`：Android 宿主接入思路
+- `docs/安卓本地应用开发任务清单.md`：Android 真机与桥接待办
+- `docs/后端技术栈初步方案.md`、`docs/后端技术栈选型报告.md`：后端架构选型
+- `docs/GitHub-Issue-推进计划.md`：Issue 拆解与推进计划
+- `backend/README.md`：后端总体说明
+- `backend/QUICKSTART_LLM.md`：LLM 服务商模块快速启动
+- `backend/docs/LLM_PROVIDER.md`：服务商配置模型与 API
+- `backend/docs/document_module.md`：文档处理链路说明
 
-## 当前建议优先级
+> 说明：`docs/` 中部分文档属于早期设计或阶段性分析；若与当前源码冲突，请优先以当前工作树源码、`.claude.md` 和本 README 为准。
 
-1. 补齐 Android 原生文件选择后的真实内容上传链路
-2. 完成聊天接口与聊天页接入
-3. 完成图谱数据接口与图谱页接入
-4. 修复 ESLint 配置，恢复 `npm run lint`
-5. 在真机环境复验 APK 安装、权限、分享、返回键与安全区体验
+## 协作与文档同步
 
-## 相关文档
-
-- `docs/项目开发进度与计划.md`
-- `docs/Capacitor Android 接入方案.md`
-- `docs/产品需求文档.md`
-- `代码审查和测试报告.md`
+- `.claude.md` 是仓库级上下文缓存，用于沉淀当前真实状态、边界和重要文档摘要
+- 任何功能、接口、目录结构或完成度变化后，都要同步更新 `.claude.md` 与 `README.md`
+- 对完成度统一使用：`已落地`、`部分完成`、`概览版 / 原型`、`规划中`

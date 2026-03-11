@@ -62,7 +62,7 @@ async function pickDocument(): Promise<PlatformResult<PickedDocument>> {
   try {
     const result = await FilePicker.pickFiles({
       limit: 1,
-      readData: true,
+      readData: false,
       types: [
         'application/pdf',
         'application/msword',
@@ -85,13 +85,48 @@ async function pickDocument(): Promise<PlatformResult<PickedDocument>> {
         size: file.size,
         mimeType: file.mimeType,
         uri: file.path,
-        data: file.data,
       },
     };
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : '文件选择失败',
+    };
+  }
+}
+
+async function readFileContent(uri: string): Promise<PlatformResult<string>> {
+  if (!uri) {
+    return {
+      success: false,
+      error: '文件路径不能为空',
+    };
+  }
+
+  if (!detectNativeApp()) {
+    return {
+      success: false,
+      error: '当前平台不支持原生文件读取',
+    };
+  }
+
+  try {
+    const result = await Filesystem.readFile({ path: uri });
+    if (typeof result.data !== 'string' || result.data.length === 0) {
+      return {
+        success: false,
+        error: '未读取到有效的文件内容',
+      };
+    }
+
+    return {
+      success: true,
+      data: result.data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '读取原生文件内容失败',
     };
   }
 }
@@ -278,6 +313,7 @@ usePlatformStore.getState().setNativeApp(isNativeApp);
 export const platformBridge: PlatformBridge = {
   isNativeApp,
   pickDocument,
+  readFileContent,
   requestStoragePermission,
   checkStoragePermission,
   shareContent,

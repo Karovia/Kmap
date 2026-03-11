@@ -14,6 +14,52 @@ const ALLOWED_TYPES = [
 ];
 
 const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'csv', 'txt', 'md'];
+const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
+
+function getFileExtension(fileName: string): string {
+  return fileName.includes('.') ? (fileName.split('.').pop()?.toLowerCase() ?? '') : '';
+}
+
+function validateSelectedFile({
+  name,
+  mimeType,
+  size,
+}: {
+  name: string;
+  mimeType?: string;
+  size: number;
+}): string | null {
+  const extension = getFileExtension(name);
+
+  if (!ALLOWED_TYPES.includes(mimeType ?? '') && !ALLOWED_EXTENSIONS.includes(extension)) {
+    return '不支持的文件类型。支持的类型：PDF, DOCX, CSV, TXT, MD';
+  }
+
+  if (size > MAX_UPLOAD_SIZE) {
+    return '文件大小不能超过50MB';
+  }
+
+  return null;
+}
+
+function createFileFromBase64(name: string, base64Data: string, mimeType?: string): File {
+  const normalizedBase64 = base64Data.includes(',') ? (base64Data.split(',').pop() ?? '') : base64Data;
+  const byteString = atob(normalizedBase64);
+  const arrayBuffer = new ArrayBuffer(byteString.length);
+  const uint8Array = new Uint8Array(arrayBuffer);
+
+  for (let index = 0; index < byteString.length; index += 1) {
+    uint8Array[index] = byteString.charCodeAt(index);
+  }
+
+  const blob = new Blob([uint8Array], {
+    type: mimeType || 'application/octet-stream',
+  });
+
+  return new File([blob], name, {
+    type: mimeType || blob.type || 'application/octet-stream',
+  });
+}
 
 export function useDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -93,17 +139,13 @@ export function useDocuments() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const extension = file.name.includes('.')
-      ? (file.name.split('.').pop()?.toLowerCase() ?? '')
-      : '';
-
-    if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(extension)) {
-      setError('不支持的文件类型。支持的类型：PDF, DOCX, CSV, TXT, MD');
-      return;
-    }
-
-    if (file.size > 50 * 1024 * 1024) {
-      setError('文件大小不能超过50MB');
+    const validationError = validateSelectedFile({
+      name: file.name,
+      mimeType: file.type,
+      size: file.size,
+    });
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -144,8 +186,18 @@ export function useDocuments() {
       const picked = result.data;
       if (!picked) return;
 
-      if (picked.size && picked.size > 50 * 1024 * 1024) {
-        setError('文件大小不能超过50MB');
+      const validationError = validateSelectedFile({
+        name: picked.name,
+        mimeType: picked.mimeType,
+        size: picked.size,
+      });
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
+      if (!picked.uri) {
+        setError('未获取到原生文件路径，无法读取真实文件内容');
         return;
       }
 
@@ -153,20 +205,13 @@ export function useDocuments() {
       setUploadProgress(0);
       setSuccess(null);
 
-      // 从 base64 数据创建真实的 File 对象
-      let file: File;
-      if (picked.data) {
-        const byteString = atob(picked.data);
-        const arrayBuffer = new ArrayBuffer(byteString.length);
-        const uint8Array = new Uint8Array(arrayBuffer);
-        for (let i = 0; i < byteString.length; i++) {
-          uint8Array[i] = byteString.charCodeAt(i);
-        }
-        const blob = new Blob([uint8Array], { type: picked.mimeType || 'application/octet-stream' });
-        file = new File([blob], picked.name, { type: picked.mimeType });
-      } else {
-        file = new File([], picked.name, { type: picked.mimeType });
+      const fileContentResult = await platformBridge.readFileContent(picked.uri);
+      if (!fileContentResult.success || !fileContentResult.data) {
+        setError(fileContentResult.error || '读取原生文件内容失败');
+        return;
       }
+
+      const file = createFileFromBase64(picked.name, fileContentResult.data, picked.mimeType);
 
       const newDoc = await api.uploadDocument(file, progress => {
         setUploadProgress(progress);

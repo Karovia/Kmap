@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import httpx
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
 
 from app.core.config import settings
@@ -195,6 +195,24 @@ class LLMService:
             temperature=temperature,
         )
 
+    @staticmethod
+    def _convert_chat_messages(messages: List[Dict[str, str]]) -> List[Any]:
+        converted_messages: List[Any] = []
+        for message in messages:
+            role = message.get("role", "user")
+            content = message.get("content", "").strip()
+            if not content:
+                continue
+
+            if role == "system":
+                converted_messages.append(SystemMessage(content=content))
+            elif role == "assistant":
+                converted_messages.append(AIMessage(content=content))
+            else:
+                converted_messages.append(HumanMessage(content=content))
+
+        return converted_messages
+
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> str:
         messages = []
         if system_prompt:
@@ -209,6 +227,21 @@ class LLMService:
             return response.content
 
         response = await self.llm.ainvoke(messages, **kwargs)
+        return response.content
+
+    async def achat(self, messages: List[Dict[str, str]], **kwargs) -> str:
+        langchain_messages = self._convert_chat_messages(messages)
+        if not langchain_messages:
+            raise ValueError("对话消息不能为空")
+
+        if self._is_ark_claude_compatible():
+            response = await self._create_ark_chat(
+                max_tokens=kwargs.get("max_tokens", 2000),
+                temperature=kwargs.get("temperature", 0.7),
+            ).ainvoke(langchain_messages, **kwargs)
+            return response.content
+
+        response = await self.llm.ainvoke(langchain_messages, **kwargs)
         return response.content
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> str:
