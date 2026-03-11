@@ -62,7 +62,7 @@ async function pickDocument(): Promise<PlatformResult<PickedDocument>> {
   try {
     const result = await FilePicker.pickFiles({
       limit: 1,
-      readData: false,
+      readData: true,
       types: [
         'application/pdf',
         'application/msword',
@@ -85,6 +85,7 @@ async function pickDocument(): Promise<PlatformResult<PickedDocument>> {
         size: file.size,
         mimeType: file.mimeType,
         uri: file.path,
+        data: file.data,
       },
     };
   } catch (error) {

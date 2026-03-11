@@ -1,17 +1,37 @@
+# Node / frontend
 node_modules/
 build/
 dist/
 coverage/
-.DS_Store
 *.log
+
+# Environment files
 .env*
 !.env.example
+
+# Python / backend
 __pycache__/
 *.pyc
-.pytest_cache/
 *.pyo
 *.pyd
-.Python
+.pytest_cache/
 *.so
 .Python
+
+# OS files
+.DS_Store
+
+# Local tool state
 .claude/settings.local.json
+.android-user-home/
+.codex-temp/
+.gradle-home/
+.gradle-user-home/
+.happy/
+.npm-cache/
+.npm-global/
+android-sdk/
+backend/.mypy_cache/
+backend/uploads/
+downloads/
+Microsoft/

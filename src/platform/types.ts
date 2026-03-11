@@ -9,6 +9,7 @@ export interface PickedDocument {
   size: number;
   mimeType?: string;
   uri?: string;
+  data?: string; // base64 编码的文件内容
 }
 
 export interface SharePayload {

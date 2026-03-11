@@ -153,7 +153,21 @@ export function useDocuments() {
       setUploadProgress(0);
       setSuccess(null);
 
-      const file = new File([], picked.name, { type: picked.mimeType });
+      // 从 base64 数据创建真实的 File 对象
+      let file: File;
+      if (picked.data) {
+        const byteString = atob(picked.data);
+        const arrayBuffer = new ArrayBuffer(byteString.length);
+        const uint8Array = new Uint8Array(arrayBuffer);
+        for (let i = 0; i < byteString.length; i++) {
+          uint8Array[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([uint8Array], { type: picked.mimeType || 'application/octet-stream' });
+        file = new File([blob], picked.name, { type: picked.mimeType });
+      } else {
+        file = new File([], picked.name, { type: picked.mimeType });
+      }
+
       const newDoc = await api.uploadDocument(file, progress => {
         setUploadProgress(progress);
       });
