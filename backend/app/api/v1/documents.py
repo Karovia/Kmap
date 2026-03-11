@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.crud.document import crud_document
+from app.db.qdrant import delete_document_vectors
 from app.db.session import get_db_session
 from app.schemas.document import (
     DocumentCreate,
@@ -180,7 +181,14 @@ async def delete_document(document_id: int, db: AsyncSession = Depends(get_db_se
     # 删除数据库记录（关联的分片会级联删除）
     await crud_document.remove(db, id=document_id)
 
-    # TODO: 删除Qdrant中的向量数据
+    # 删除Qdrant中的向量数据
+    try:
+        delete_document_vectors(document_id)
+    except Exception as e:
+        # 向量删除失败不影响主流程，记录日志即可
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"删除文档 {document_id} 的向量数据失败: {str(e)}")
 
     return {"success": True, "message": "文档删除成功"}
 

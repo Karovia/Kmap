@@ -2,6 +2,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+import google.generativeai as genai
 import httpx
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
@@ -13,6 +14,74 @@ from app.models.llm_provider import LLMProvider
 @dataclass
 class ChatResponse:
     content: str
+
+
+class GeminiChat:
+    """Google Gemini 对话接口"""
+
+    def __init__(self, api_key: str, model: str, max_tokens: int = 2000, temperature: float = 0.7):
+        genai.configure(api_key=api_key)
+        self.model = model
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+        self.client = genai.GenerativeModel(model_name=model)
+
+    @staticmethod
+    def _convert_messages(messages: List[Any]) -> List[Dict[str, str]]:
+        converted: List[Dict[str, str]] = []
+        for message in messages:
+            role = "model"
+            if isinstance(message, SystemMessage):
+                # Gemini不支持system role，合并到第一条user消息
+                continue
+            elif isinstance(message, HumanMessage):
+                role = "user"
+
+            converted.append({"role": role, "parts": [str(message.content)]})
+        return converted
+
+    def _get_system_message(self, messages: List[Any]) -> Optional[str]:
+        """提取系统消息"""
+        for message in messages:
+            if isinstance(message, SystemMessage):
+                return str(message.content)
+        return None
+
+    async def ainvoke(self, messages: List[Any], **kwargs) -> ChatResponse:
+        system_prompt = self._get_system_message(messages)
+        converted_messages = self._convert_messages(messages)
+
+        generation_config = {
+            "temperature": kwargs.get("temperature", self.temperature),
+            "max_output_tokens": kwargs.get("max_tokens", self.max_tokens),
+        }
+
+        response = await self.client.generate_content_async(
+            converted_messages,
+            generation_config=generation_config,
+            stream=False
+        )
+        response.resolve()
+
+        return ChatResponse(content=response.text)
+
+    def invoke(self, messages: List[Any], **kwargs) -> ChatResponse:
+        system_prompt = self._get_system_message(messages)
+        converted_messages = self._convert_messages(messages)
+
+        generation_config = {
+            "temperature": kwargs.get("temperature", self.temperature),
+            "max_output_tokens": kwargs.get("max_tokens", self.max_tokens),
+        }
+
+        response = self.client.generate_content(
+            converted_messages,
+            generation_config=generation_config,
+            stream=False
+        )
+        response.resolve()
+
+        return ChatResponse(content=response.text)
 
 
 class ArkAnthropicCompatibleChat:
@@ -125,12 +194,46 @@ class LLMFactory:
 
             return ChatAnthropic(anthropic_api_key=provider.api_key, anthropic_api_url=provider.base_url, **common_params)
         if provider.type == "gemini":
-            raise ValueError("当前后端尚未接入 Gemini 对话模型，请先使用 OpenAI、Claude 或自定义 OpenAI 兼容服务")
+            return GeminiChat(
+                api_key=provider.api_key,
+                model=provider.model_name,
+                max_tokens=common_params["max_tokens"],
+                temperature=common_params["temperature"],
+            )
         if provider.type == "custom":
             from langchain_community.chat_models import ChatOpenAI
 
             return ChatOpenAI(api_key=provider.api_key, base_url=provider.base_url, **common_params)
         raise ValueError(f"不支持的服务商类型: {provider.type}")
+
+
+class GeminiEmbeddings:
+    """Google Gemini Embedding 接口"""
+
+    def __init__(self, api_key: str, model: str):
+        genai.configure(api_key=api_key)
+        self.model = model
+
+    def embed_query(self, text: str) -> List[float]:
+        """嵌入单个文本"""
+        result = genai.embed_content(
+            model=self.model,
+            content=text,
+            task_type="retrieval_document"
+        )
+        return result["embedding"]
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """批量嵌入文本"""
+        results = []
+        for text in texts:
+            result = genai.embed_content(
+                model=self.model,
+                content=text,
+                task_type="retrieval_document"
+            )
+            results.append(result["embedding"])
+        return results
 
 
 class VolcengineEmbeddings:
@@ -172,7 +275,7 @@ class EmbeddingFactory:
         if provider.type == "custom":
             return OpenAIEmbeddings(api_key=provider.api_key, base_url=provider.base_url, model=provider.model_name)
         if provider.type == "gemini":
-            raise ValueError("当前后端尚未接入 Gemini Embedding，请先使用 OpenAI 或自定义 OpenAI 兼容向量服务")
+            return GeminiEmbeddings(api_key=provider.api_key, model=provider.model_name)
         raise ValueError(f"当前 Embedding 不支持服务商类型: {provider.type}")
 
 

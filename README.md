@@ -38,8 +38,8 @@ Kmap 是一个面向知识管理场景的 Android 本地知识图谱应用仓库
 - 首页仍是静态仪表盘，不是实时业务数据
 - 当前图谱只是概览视图，还没有 Nebula Graph 实体关系查询与高级交互
 - 聊天仍是基础问答，没有流式返回、历史会话、检索增强和引用来源
-- `Gemini` 虽然在服务商类型中可选，但当前后端实际未接通 Gemini 对话 / Embedding
-- 文档删除时仍有 `Qdrant` 清理 TODO
+- `Gemini` 已接入后端对话 / Embedding 代码路径，但还缺少完整联调与稳定性验证
+- 文档删除已补上 `Qdrant` 关联向量清理逻辑，但仍需依赖真实环境验证
 - Android 原生文件上传、权限、分享、返回键等能力仍需真机联调验证
 
 ## 仓库结构
@@ -106,6 +106,8 @@ cd android
 - `docs/安卓本地应用开发任务清单.md`：Android 真机与桥接待办
 - `docs/后端技术栈初步方案.md`、`docs/后端技术栈选型报告.md`：后端架构选型
 - `docs/GitHub-Issue-推进计划.md`：Issue 拆解与推进计划
+- `docs/Kmap移动端主攻方向开发计划.md`：Android 主线版本推进计划
+- `docs/Kmap本地模型支持技术方案.md`：本地模型与离线能力方案
 - `backend/README.md`：后端总体说明
 - `backend/QUICKSTART_LLM.md`：LLM 服务商模块快速启动
 - `backend/docs/LLM_PROVIDER.md`：服务商配置模型与 API
