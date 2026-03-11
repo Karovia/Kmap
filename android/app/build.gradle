@@ -1,10 +1,20 @@
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def keystoreProperties = new Properties()
 def hasReleaseSigning = keystorePropertiesFile.exists()
+def releaseStoreFile = null
+def releaseStorePassword = null
+def releaseKeyAlias = null
+def releaseKeyPassword = null
 
 if (hasReleaseSigning) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    releaseStoreFile = keystoreProperties.getProperty('storeFile')
+    releaseStorePassword = keystoreProperties.getProperty('storePassword')
+    releaseKeyAlias = keystoreProperties.getProperty('keyAlias')
+    releaseKeyPassword = keystoreProperties.getProperty('keyPassword')
 }
+
+def hasCompleteReleaseSigning = hasReleaseSigning && releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
 
 apply plugin: 'com.android.application'
 
@@ -26,17 +36,17 @@ android {
     }
     signingConfigs {
         release {
-            if (hasReleaseSigning) {
-                storeFile file(keystoreProperties['storeFile'])
-                storePassword keystoreProperties['storePassword']
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
+            if (hasCompleteReleaseSigning) {
+                storeFile rootProject.file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
             }
         }
     }
     buildTypes {
         release {
-            if (hasReleaseSigning) {
+            if (hasCompleteReleaseSigning) {
                 signingConfig signingConfigs.release
             }
             minifyEnabled false

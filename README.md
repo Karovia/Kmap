@@ -97,6 +97,13 @@ cd android
 ./gradlew assembleDebug
 ```
 
+如果需要构建已签名 release 包，确保本地存在：
+
+- `android/keystore.properties`
+- `android/*.jks` 或 `android/*.keystore`
+
+当前 `android/app/build.gradle` 已按 Android 工程根目录解析签名文件路径。
+
 ## 重要文档
 
 - `docs/产品需求文档.md`：产品目标、功能范围与需求边界
@@ -106,6 +113,7 @@ cd android
 - `docs/安卓本地应用开发任务清单.md`：Android 真机与桥接待办
 - `docs/后端技术栈初步方案.md`、`docs/后端技术栈选型报告.md`：后端架构选型
 - `docs/GitHub-Issue-推进计划.md`：Issue 拆解与推进计划
+- `Kmap-P1-Preview开发进度计划表.md`：P1 Preview 阶段进度计划
 - `docs/Kmap移动端主攻方向开发计划.md`：Android 主线版本推进计划
 - `docs/Kmap本地模型支持技术方案.md`：本地模型与离线能力方案
 - `backend/README.md`：后端总体说明
