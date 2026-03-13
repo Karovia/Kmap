@@ -4,7 +4,7 @@ import type { ModelInfo, LocalModel, DownloadTask, ModelType } from '../types/do
 import { usePlatformStore } from './platformStore';
 import { Capacitor } from '@capacitor/core';
 import type { PermissionState } from '../platform/types';
-import { platformBridge } from '../platform/bridge';
+import { platformBridge } from '../platform';
 
 interface ModelStoreState {
   // 模型市场数据
