@@ -1,5 +1,5 @@
 import type { Document } from '../types/domain';
-import { parseJsonResponse, requestJson } from './httpClient';
+import { parseJsonResponse, requestJson, requestRaw } from './httpClient';
 
 interface BackendDocument {
   id: number;
@@ -60,7 +60,7 @@ export const documentsService = {
 
     onProgress?.(0);
 
-    const response = await fetch('/api/v1/documents/upload', {
+    const response = await requestRaw('/api/v1/documents/upload', {
       method: 'POST',
       body: formData,
     });
@@ -82,7 +82,7 @@ export const documentsService = {
   },
 
   async deleteDocument(id: string): Promise<void> {
-    const response = await fetch(`/api/v1/documents/${id}`, { method: 'DELETE' });
+    const response = await requestRaw(`/api/v1/documents/${id}`, { method: 'DELETE' });
     if (!response.ok) {
       throw new Error('删除文档失败');
     }

@@ -1,0 +1,11 @@
+# 本地模式依赖包
+onnxruntime>=1.16.0
+transformers>=4.35.0
+sentencepiece>=0.1.99
+PyPDF2>=3.0.1
+python-docx>=1.1.0
+openpyxl>=3.1.2
+pandas>=2.1.0
+
+# GPU加速（可选）
+# onnxruntime-gpu>=1.16.0

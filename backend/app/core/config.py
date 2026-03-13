@@ -73,6 +73,22 @@ class Settings(BaseSettings):
     PASSWORD_MIN_LENGTH: int = 8
     ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1", "0.0.0.0"]
 
+    # 本地推理配置
+    LOCAL_INFERENCE_ENABLED: bool = False
+    LOCAL_LLM_MODEL_PATH: str = "./models/qwen2-0.5b-onnx/model.onnx"
+    LOCAL_LLM_TOKENIZER_PATH: str = "./models/qwen2-0.5b-onnx"
+    LOCAL_EMBEDDING_MODEL_PATH: str = "./models/bge-small-zh-v1.5-onnx/model.onnx"
+    LOCAL_EMBEDDING_TOKENIZER_PATH: str = "./models/bge-small-zh-v1.5-onnx"
+    LOCAL_USE_GPU: bool = False
+    LOCAL_EMBEDDING_DIM: int = 512
+
+    # 运行模式: local(纯本地), cloud(纯云端), hybrid(混合模式，优先本地)
+    RUN_MODE: str = "cloud"
+
+    # 本地图数据库配置
+    LOCAL_GRAPH_DB_TYPE: str = "litegraph"  # litegraph 或 neo4j-embedded
+    LOCAL_GRAPH_DB_PATH: str = "./data/graphdb"
+
     model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", extra="ignore")
 
 

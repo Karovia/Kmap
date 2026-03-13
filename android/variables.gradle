@@ -1,7 +1,9 @@
 ext {
-    minSdkVersion = 24
+    minSdkVersion = 28 // Android 9+ support
     compileSdkVersion = 36
     targetSdkVersion = 36
+    onnxRuntimeVersion = '1.18.0'
+    abiFilters = ['armeabi-v7a', 'arm64-v8a']
     androidxActivityVersion = '1.11.0'
     androidxAppCompatVersion = '1.7.1'
     androidxCoordinatorLayoutVersion = '1.3.0'

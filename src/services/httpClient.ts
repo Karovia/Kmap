@@ -1,3 +1,5 @@
+import { resolveApiUrl } from './apiBase';
+
 export async function parseJsonResponse<T>(
   response: Response,
   fallbackMessage: string
@@ -30,6 +32,17 @@ export async function requestJson<T>(
   init: RequestInit | undefined,
   fallbackMessage: string
 ): Promise<T> {
-  const response = await fetch(input, init);
+  const resolvedInput =
+    typeof input === 'string'
+      ? resolveApiUrl(input)
+      : input instanceof URL
+        ? new URL(resolveApiUrl(input.toString()))
+        : input;
+
+  const response = await fetch(resolvedInput, init);
   return parseJsonResponse<T>(response, fallbackMessage);
+}
+
+export async function requestRaw(input: string, init?: RequestInit): Promise<Response> {
+  return fetch(resolveApiUrl(input), init);
 }

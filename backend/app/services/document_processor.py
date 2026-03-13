@@ -5,10 +5,10 @@ from typing import Any, Dict, List
 from langchain_openai import OpenAIEmbeddings
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from unstructured.chunking.title import chunk_by_title
-from unstructured.partition.auto import partition
 
 from app.core.config import settings
 from app.core.llm import get_default_embedding_service
+from app.core.local_document_parser import local_parser
 from app.crud.document import crud_document, crud_document_chunk
 from app.db.qdrant import get_qdrant_client
 from app.db.session import AsyncSessionLocal
@@ -59,14 +59,36 @@ class DocumentProcessor:
 
     def _parse_document(self, file_path: str) -> List[Any]:
         """
-        使用Unstructured.IO解析文档内容
+        解析文档内容，本地模式使用本地解析器，云端模式使用Unstructured.IO
         :param file_path: 文件路径
         :return: 解析后的元素列表
         """
         try:
-            elements = partition(filename=file_path, strategy="auto", include_page_breaks=True)
-            logger.info(f"文档解析完成，共 {len(elements)} 个元素")
-            return elements
+            # 本地模式或混合模式优先使用本地解析器
+            if settings.RUN_MODE in ["local", "hybrid"]:
+                elements = local_parser.parse(file_path)
+                logger.info(f"本地解析器解析文档完成，共 {len(elements)} 个元素")
+                # 转换为与Unstructured兼容的格式
+                class MockElement:
+                    def __init__(self, text, metadata):
+                        self.text = text
+                        self.metadata = metadata
+
+                class MockMetadata:
+                    def __init__(self, page_number):
+                        self.page_number = page_number
+
+                converted_elements = []
+                for elem in elements:
+                    metadata = MockMetadata(page_number=elem.get("page_number", 1))
+                    converted_elements.append(MockElement(text=elem["content"], metadata=metadata))
+                return converted_elements
+            else:
+                # 云端模式使用Unstructured.IO
+                from unstructured.partition.auto import partition
+                elements = partition(filename=file_path, strategy="auto", include_page_breaks=True)
+                logger.info(f"Unstructured.IO解析文档完成，共 {len(elements)} 个元素")
+                return elements
         except Exception as e:
             logger.error(f"文档解析失败: {str(e)}")
             raise

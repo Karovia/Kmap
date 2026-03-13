@@ -1,5 +1,5 @@
 import type { LLMProvider, ProviderScope, ProviderType } from '../types/domain';
-import { parseJsonResponse, requestJson } from './httpClient';
+import { parseJsonResponse, requestJson, requestRaw } from './httpClient';
 
 interface BackendProvider {
   id: number;
@@ -89,14 +89,14 @@ export const providersService = {
   },
 
   async deleteProvider(id: string): Promise<void> {
-    const response = await fetch(`/api/v1/providers/${id}`, { method: 'DELETE' });
+    const response = await requestRaw(`/api/v1/providers/${id}`, { method: 'DELETE' });
     if (!response.ok) {
       throw new Error('删除服务商失败');
     }
   },
 
   async testProvider(id: string): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`/api/v1/providers/${id}/test`, {
+    const response = await requestRaw(`/api/v1/providers/${id}/test`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),

@@ -2,13 +2,18 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-import google.generativeai as genai
 import httpx
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import OpenAIEmbeddings
 
 from app.core.config import settings
 from app.models.llm_provider import LLMProvider
+from app.core.local_inference import local_inference
+
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 
 
 @dataclass
@@ -20,6 +25,8 @@ class GeminiChat:
     """Google Gemini 对话接口"""
 
     def __init__(self, api_key: str, model: str, max_tokens: int = 2000, temperature: float = 0.7):
+        if genai is None:
+            raise ValueError("当前环境未安装 google-generativeai，暂时无法使用 Gemini 对话模型")
         genai.configure(api_key=api_key)
         self.model = model
         self.max_tokens = max_tokens
@@ -204,6 +211,9 @@ class LLMFactory:
             from langchain_community.chat_models import ChatOpenAI
 
             return ChatOpenAI(api_key=provider.api_key, base_url=provider.base_url, **common_params)
+        if provider.type == "local":
+            # 本地模型不需要API密钥等参数，直接返回本地LLM实例
+            return local_inference.llm
         raise ValueError(f"不支持的服务商类型: {provider.type}")
 
 
@@ -211,6 +221,8 @@ class GeminiEmbeddings:
     """Google Gemini Embedding 接口"""
 
     def __init__(self, api_key: str, model: str):
+        if genai is None:
+            raise ValueError("当前环境未安装 google-generativeai，暂时无法使用 Gemini Embedding 模型")
         genai.configure(api_key=api_key)
         self.model = model
 
@@ -276,6 +288,9 @@ class EmbeddingFactory:
             return OpenAIEmbeddings(api_key=provider.api_key, base_url=provider.base_url, model=provider.model_name)
         if provider.type == "gemini":
             return GeminiEmbeddings(api_key=provider.api_key, model=provider.model_name)
+        if provider.type == "local":
+            # 本地Embedding模型
+            return local_inference.embedding
         raise ValueError(f"当前 Embedding 不支持服务商类型: {provider.type}")
 
 
@@ -421,7 +436,34 @@ class EmbeddingService:
 async def get_default_llm_service(db_session) -> Optional[LLMService]:
     from app.crud import llm_provider
 
+    # 纯本地模式，直接返回本地LLM服务
+    if settings.RUN_MODE == "local" and settings.LOCAL_INFERENCE_ENABLED and local_inference.is_available():
+        local_provider = LLMProvider(
+            name="Local LLM",
+            type="local",
+            provider_scope="chat",
+            api_key="",
+            base_url=None,
+            model_name="qwen2-0.5b",
+            is_default=True,
+        )
+        return LLMService(local_provider)
+
     default_provider = await llm_provider.get_default(db_session, provider_scope="chat")
+
+    # 混合模式，如果云端不可用且本地可用，回退到本地
+    if not default_provider and settings.RUN_MODE == "hybrid" and settings.LOCAL_INFERENCE_ENABLED and local_inference.is_available():
+        local_provider = LLMProvider(
+            name="Local LLM",
+            type="local",
+            provider_scope="chat",
+            api_key="",
+            base_url=None,
+            model_name="qwen2-0.5b",
+            is_default=True,
+        )
+        return LLMService(local_provider)
+
     if not default_provider:
         if settings.OPENAI_API_KEY:
             fallback_provider = LLMProvider(
@@ -442,7 +484,34 @@ async def get_default_llm_service(db_session) -> Optional[LLMService]:
 async def get_default_embedding_service(db_session) -> Optional[EmbeddingService]:
     from app.crud import llm_provider
 
+    # 纯本地模式，直接返回本地Embedding服务
+    if settings.RUN_MODE == "local" and settings.LOCAL_INFERENCE_ENABLED and local_inference.is_available():
+        local_provider = LLMProvider(
+            name="Local Embedding",
+            type="local",
+            provider_scope="embedding",
+            api_key="",
+            base_url=None,
+            model_name="bge-small-zh-v1.5",
+            is_default=True,
+        )
+        return EmbeddingService(local_provider)
+
     default_provider = await llm_provider.get_default(db_session, provider_scope="embedding")
+
+    # 混合模式，如果云端不可用且本地可用，回退到本地
+    if not default_provider and settings.RUN_MODE == "hybrid" and settings.LOCAL_INFERENCE_ENABLED and local_inference.is_available():
+        local_provider = LLMProvider(
+            name="Local Embedding",
+            type="local",
+            provider_scope="embedding",
+            api_key="",
+            base_url=None,
+            model_name="bge-small-zh-v1.5",
+            is_default=True,
+        )
+        return EmbeddingService(local_provider)
+
     if not default_provider:
         if settings.OPENAI_API_KEY:
             fallback_provider = LLMProvider(

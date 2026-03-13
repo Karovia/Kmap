@@ -21,6 +21,17 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.karovia.kmap"
     compileSdk = rootProject.ext.compileSdkVersion
+
+    // 签名配置
+    signingConfigs {
+        release {
+            storeFile file("../kmap-release.keystore")
+            storePassword "kmap2026"
+            keyAlias "kmap"
+            keyPassword "kmap2026"
+        }
+    }
+
     defaultConfig {
         applicationId "com.karovia.kmap"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -28,10 +39,20 @@ android {
         versionCode 2
         versionName "1.0.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            abiFilters = rootProject.ext.abiFilters
+        }
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+            noCompress 'onnx', 'model', 'bin' // Don't compress model files for faster loading
+        }
+        // Copy model files from assets to app data on first run
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += ["room.schemaLocation": "$projectDir/schemas".toString()]
+            }
         }
     }
     signingConfigs {
@@ -46,12 +67,42 @@ android {
     }
     buildTypes {
         release {
-            if (hasCompleteReleaseSigning) {
-                signingConfig signingConfigs.release
+            signingConfig signingConfigs.release
+            minifyEnabled true // Enable code obfuscation
+            shrinkResources true // Enable resource shrinking
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            ndk {
+                debugSymbolLevel 'FULL'
             }
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        debug {
+            minifyEnabled false
+            debuggable true
+        }
+    }
+    // Configure APK splits to reduce size
+    // splits {
+    //     abi {
+    //         enable true
+    //         reset()
+    //         include 'armeabi-v7a', 'arm64-v8a'
+    //         universalApk false // Don't generate universal APK
+    //     }
+    // }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+        // Enable ZIP64 for large APK files (>4GB)
+        dex {
+            useLegacyPackaging = false
+        }
+    }
+
+    // Compress assets
+    aaptOptions {
+        cruncherEnabled = true
+        cruncherProcesses = 4
     }
 }
 
@@ -71,6 +122,14 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+    // ONNX Runtime Mobile for local inference (内置NNAPI硬件加速支持)
+    implementation "com.microsoft.onnxruntime:onnxruntime-android:$rootProject.ext.onnxRuntimeVersion"
+
+    // AndroidX WorkManager for background tasks
+    implementation "androidx.work:work-runtime:2.9.0"
+    // Material Design components
+    implementation "com.google.android.material:material:1.11.0"
 }
 
 apply from: 'capacitor.build.gradle'

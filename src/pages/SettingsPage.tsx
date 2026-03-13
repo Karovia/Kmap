@@ -6,6 +6,7 @@ import { ProviderList } from '../components/settings/ProviderList';
 import { ProviderScopeTabs } from '../components/settings/ProviderScopeTabs';
 import { SettingsHintCard } from '../components/settings/SettingsHintCard';
 import { StatusAlerts } from '../components/settings/StatusAlerts';
+import { ModelManager } from '../components/settings/ModelManager';
 import { api } from '../services/api';
 import { useProviderStore } from '../stores/providerStore';
 import type { LLMProvider, ProviderScope } from '../types/domain';
@@ -227,6 +228,12 @@ export function SettingsPage() {
             onDelete={handleDelete}
           />
         </section>
+
+        {/* 模型管理模块 */}
+        <ModelManager
+          onError={setError}
+          onSuccess={setSuccess}
+        />
 
         <ProviderFormModal
           show={showForm}

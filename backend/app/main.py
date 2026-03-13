@@ -6,6 +6,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import api_router
 from app.core.config import settings
+from app.core.initialization import initialize_local_services
 # from app.db import close_nebula_connection, close_qdrant_connection, close_rabbitmq_connection, close_redis_connection
 
 
@@ -13,6 +14,7 @@ from app.core.config import settings
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时初始化
+    initialize_local_services()
     yield
     # 关闭时清理资源
     # await close_redis_connection()
@@ -52,7 +54,17 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.get("/")
 async def root():
     """根路径"""
-    return {"message": "Welcome to Kmap Backend API", "docs": "/docs", "health": f"{settings.API_V1_STR}/health"}
+    from app.core.local_inference import local_inference
+    from app.core.local_graph import local_graph
+
+    return {
+        "message": "Welcome to Kmap Backend API",
+        "docs": "/docs",
+        "health": f"{settings.API_V1_STR}/health",
+        "run_mode": settings.RUN_MODE,
+        "local_inference_available": local_inference.is_available(),
+        "local_graph_available": local_graph.is_available()
+    }
 
 
 if __name__ == "__main__":
