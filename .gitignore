@@ -35,3 +35,5 @@ backend/.mypy_cache/
 backend/uploads/
 downloads/
 Microsoft/
+Top0-preview-local.apk
+*.bak
